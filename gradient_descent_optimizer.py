@@ -1,0 +1,64 @@
+#   Copyright 2021 orqviz developers
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+from typing import Callable, Optional, Tuple
+
+import numpy as np
+
+from orqviz.gradients import calculate_full_gradient
+
+
+def gradient_descent_optimizer(
+    init_params: np.ndarray,
+    loss_function: Callable,
+    n_iters: int,
+    learning_rate: float = 0.1,
+    full_gradient_function: Optional[Callable] = None,
+    eval_loss_during_training: bool = True,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Function perform gradient descent optimization on a loss function.
+    Args:
+        init_params: Initial parameter vector from which to start the optimization.
+        loss_function: Loss function with respect to which the gradient is calculated.
+        n_iters: Number of iterations to optimize.
+        learning_rate: Learning rate for gradient descent. The calculated gradient
+            is multiplied with this value and then updates the parameter vector.
+        full_gradient_function: Gradient function to calculate the partial derivatives
+            of the loss function with respect to each parameter vector entry.
+            If None, a simple numerical gradient is computed. Defaults to None.
+        eval_loss_during_training: Flag to indicate whether to evaluate the loss
+            at every iteration during training. Doing so adds 'n_iters-1'
+            loss function calls. If False, only the initial and final losses
+            are calculated and returned. Defaults to False.
+    """
+    if full_gradient_function is None:
+
+        def _full_gradient_function(params):
+            return calculate_full_gradient(params, loss_function=loss_function)
+
+        full_gradient_function = _full_gradient_function
+
+    params = init_params
+    all_costs = []
+    all_params = [init_params]
+    for _ in range(n_iters):
+        if eval_loss_during_training:
+            all_costs.append(loss_function(params))
+        grad_val = full_gradient_function(params)
+        params = params - learning_rate * grad_val
+        all_params.append(params)
+
+    all_costs.append(loss_function(params))
+
+    return np.array(all_params), np.array(all_costs)
